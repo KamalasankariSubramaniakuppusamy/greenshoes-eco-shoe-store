@@ -1,0 +1,246 @@
+import React, { useState, useMemo } from 'react';
+import { Eye, EyeOff, Check, X } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import Button from '../common/Button';
+
+const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
+  const { register } = useAuth();
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Password validation rules
+  const passwordRules = useMemo(() => {
+    const password = formData.password;
+    return [
+      { label: 'At least 8 characters', valid: password.length >= 8 },
+      { label: 'Contains uppercase letter', valid: /[A-Z]/.test(password) },
+      { label: 'Contains lowercase letter', valid: /[a-z]/.test(password) },
+      { label: 'Contains a number', valid: /[0-9]/.test(password) },
+      { label: 'Contains special character (!@#$%^&*)', valid: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+    ];
+  }, [formData.password]);
+
+  const isPasswordValid = passwordRules.every(rule => rule.valid);
+  const doPasswordsMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== '';
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
+      setError('All fields are required');
+      return;
+    }
+
+    if (!isPasswordValid) {
+      setError('Password does not meet requirements');
+      return;
+    }
+
+    if (!doPasswordsMatch) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    const result = await register({
+      name: formData.fullName,
+      fullName: formData.fullName,
+      email: formData.email,
+      password: formData.password,
+    });
+
+    setLoading(false);
+
+    if (result.success) {
+      onClose();
+    } else {
+      setError(result.error || 'Registration failed');
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="text-center mb-6">
+        <h2 
+          className="text-2xl font-semibold text-gray-900"
+          style={{ fontFamily: "'Playfair Display', serif" }}
+        >
+          Create Account
+        </h2>
+        <p className="text-gray-500 text-sm mt-1">Join GreenShoes today</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Full Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Full Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="fullName"
+            value={formData.fullName}
+            onChange={handleChange}
+            placeholder="John Doe"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-gray-900 bg-white"
+          />
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="your@email.com"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-gray-900 bg-white"
+          />
+        </div>
+
+        {/* Password */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Password <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-gray-900 bg-white"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          
+          {/* Password Requirements */}
+          {formData.password && (
+            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs font-medium text-gray-600 mb-2">Password must contain:</p>
+              <ul className="space-y-1">
+                {passwordRules.map((rule, index) => (
+                  <li key={index} className="flex items-center gap-2 text-xs">
+                    {rule.valid ? (
+                      <Check size={14} className="text-green-500" />
+                    ) : (
+                      <X size={14} className="text-red-400" />
+                    )}
+                    <span className={rule.valid ? 'text-green-600' : 'text-gray-500'}>
+                      {rule.label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Confirm Password */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Confirm Password <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="••••••••"
+              className={`w-full px-4 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-gray-900 bg-white ${
+                formData.confirmPassword && !doPasswordsMatch 
+                  ? 'border-red-500' 
+                  : formData.confirmPassword && doPasswordsMatch 
+                  ? 'border-green-500' 
+                  : 'border-gray-300'
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {formData.confirmPassword && !doPasswordsMatch && (
+            <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+          )}
+          {formData.confirmPassword && doPasswordsMatch && (
+            <p className="mt-1 text-xs text-green-500 flex items-center gap-1">
+              <Check size={12} /> Passwords match
+            </p>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <Button 
+          type="submit" 
+          variant="accent" 
+          fullWidth 
+          disabled={loading || !isPasswordValid || !doPasswordsMatch}
+        >
+          {loading ? 'Creating Account...' : 'Create Account'}
+        </Button>
+      </form>
+
+      {/* Switch to Login */}
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-600">
+          Already have an account?{' '}
+          <button
+            onClick={onSwitchToLogin}
+            className="text-accent hover:underline font-medium"
+          >
+            Sign In
+          </button>
+        </p>
+      </div>
+
+      {/* Continue as Guest */}
+      <div className="mt-4 text-center">
+        <button
+          onClick={onClose}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          Continue as Guest
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterDrawer;
