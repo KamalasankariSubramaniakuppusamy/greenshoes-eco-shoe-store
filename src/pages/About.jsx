@@ -271,13 +271,40 @@ const About = () => {
       </section>
 
       {/* No Returns Notice */}
-      <section className="py-8 px-4 bg-gray-100">
+      <section className="py-12 px-4 bg-gray-100">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h3 className="text-xl font-serif mb-2 text-primary">Important Notice</h3>
-            <p className="text-gray-600">
-              <strong>No Returns or Refunds:</strong> All sales are final. We stand behind the quality of our products and encourage you to review product details carefully before purchase. This policy allows us to maximize our contribution to ocean cleanup and coastal community support.
-            </p>
+          <div className="bg-white p-8 rounded-lg shadow-sm">
+            <h3 className="text-2xl font-serif mb-6 text-primary">Important Information</h3>
+            
+            <div className="space-y-4 text-gray-600">
+              <div className="flex items-start gap-3">
+                <span className="text-accent font-bold">•</span>
+                <p>
+                  <strong>Shipping:</strong> A flat shipping fee of <span className="font-semibold text-primary">$11.99</span> applies to every order, regardless of order size or destination.
+                </p>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <span className="text-accent font-bold">•</span>
+                <p>
+                  <strong>Tax:</strong> A <span className="font-semibold text-primary">6% tax</span> is applied to all products at checkout.
+                </p>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <span className="text-accent font-bold">•</span>
+                <p>
+                  <strong>Sizing:</strong> All shoe sizes listed on our website are in <span className="font-semibold text-primary">US sizes</span>. Please refer to a size conversion chart if you typically use EU or UK sizing.
+                </p>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <span className="text-accent font-bold">•</span>
+                <p>
+                  <strong>No Returns or Refunds:</strong> All sales are final. We stand behind the quality of our products and encourage you to review product details and sizing carefully before purchase. This policy allows us to maximize our contribution to ocean cleanup and coastal community support.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
