@@ -23,6 +23,7 @@ const downloadInvoice = (orderData, orderNum) => {
     price_breakdown,
     estimated_delivery,
     order_date,
+    created_at,
     shipping_full_name,
     shipping_phone,
     shipping_address1,
@@ -54,9 +55,23 @@ const downloadInvoice = (orderData, orderNum) => {
   const shippingAmount = priceInfo.shipping_fee || shipping_fee || shipping || '0';
   const totalAmount = priceInfo.total || total_amount || total || '0';
 
-  const orderDate = order_date ? new Date(order_date).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric'
-  }) : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  // FIX: Include time in the order date formatting
+  const orderDateSource = order_date || created_at;
+  const formattedOrderDate = orderDateSource ? new Date(orderDateSource).toLocaleString('en-US', {
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }) : new Date().toLocaleString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
 
   const deliveryDate = estimated_delivery ? new Date(estimated_delivery).toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric'
@@ -119,7 +134,7 @@ const downloadInvoice = (orderData, orderNum) => {
           <div class="invoice-title">
             <h1>INVOICE</h1>
             <p><strong>Order:</strong> ${orderNum}</p>
-            <p><strong>Date:</strong> ${orderDate}</p>
+            <p><strong>Date:</strong> ${formattedOrderDate}</p>
           </div>
         </div>
 
