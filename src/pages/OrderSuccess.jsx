@@ -1,3 +1,13 @@
+// Developer: Kamalasankari Subramaniakuppusamy
+// This file may contain lots of comments and sometimes even commented out code snippets so that I can keep track of the changes made over time for future reference.
+// Admin view for all orders placed on the platform - both guest and registered users
+// This is read-only for now - admins can view order details but not modify them
+//
+// REQUIREMENTS SATISFIED:
+// - "Each order shall be assigned a unique confirmation ID for identification and tracking purposes"
+// - "The software shall display the order ID, shoe color, size, billing address, shipping address, and total amount paid"
+// - "Single admin interface for product, inventory, and impact management" - Orders are part of that single interface
+
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, Package, Truck, Calendar, Download } from 'lucide-react';

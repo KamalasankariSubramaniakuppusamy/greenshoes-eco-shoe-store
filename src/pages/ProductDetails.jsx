@@ -1,3 +1,19 @@
+// ============================================================================
+// (Product Detail Page - PDP)
+// ============================================================================
+// Full product page with all details, variant selection, and purchase options
+// This is one of the most complex pages in the app
+//
+// Features:
+// - Image gallery with color-filtered thumbnails
+// - Color and size selection (inventory-aware)
+// - Real-time stock status per variant
+// - Add to cart / Remove from cart toggle
+// - Buy Now (skip cart, go direct to checkout)
+// - Wishlist toggle
+// - Environmental impact display
+// - Shipping info and policies
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Truck, Shield, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
@@ -10,43 +26,62 @@ import Button from '../components/common/Button';
 import Loading from '../components/common/Loading';
 import ImpactStory from '../components/product/ImpactStory';
 
+// Base URL for product images
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000';
 
+// Helper to construct full image URL
 const getImageUrl = (imagePath) => {
   if (!imagePath) return 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=800';
   if (imagePath.startsWith('http')) return imagePath;
   return `${API_BASE}${imagePath}`;
 };
 
+
 const ProductDetails = () => {
-  const { id } = useParams();
+  // ---------- ROUTING ----------
+  const { id } = useParams();  // Product ID from URL
   const navigate = useNavigate();
+  
+  // ---------- PRODUCT STATE ----------
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // ---------- SELECTION STATE ----------
+  // User's current selections for the variant they want
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  
+  // ---------- IMAGE GALLERY STATE ----------
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // ---------- ACTION STATES ----------
+  // Track loading states for various buttons
   const [addingToCart, setAddingToCart] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [removingFromCart, setRemovingFromCart] = useState(false);
-  
-  // Wishlist states
   const [wishlistLoading, setWishlistLoading] = useState(false);
   
-  // Use ref to prevent duplicate API calls
+  // Prevent duplicate wishlist API calls (race condition protection)
   const wishlistActionInProgress = useRef(false);
 
+  // ---------- CONTEXT HOOKS ----------
   const { cart, addToCart, removeItem } = useCart();
   const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const { isAuthenticated } = useAuth();
 
-  // Check if product is in wishlist - derived from wishlist array
-  const isProductInWishlist = product ? wishlist.some(item => item.product_id === product.id) : false;
+  // ==========================================================================
+  // DERIVED STATE
+  // ==========================================================================
   
-  // Check if current variant is in cart
+  // Check if product is in wishlist (simple boolean derived from wishlist array)
+  const isProductInWishlist = product 
+    ? wishlist.some(item => item.product_id === product.id) 
+    : false;
+  
+  // Check if currently selected variant is already in cart
   useEffect(() => {
     if (product && selectedColor && selectedSize && cart.items) {
       const inCart = cart.items.some(item => 
@@ -58,6 +93,10 @@ const ProductDetails = () => {
     }
   }, [product, selectedColor, selectedSize, cart.items]);
 
+  // ==========================================================================
+  // DATA FETCHING
+  // ==========================================================================
+  
   useEffect(() => {
     fetchProduct();
   }, [id]);
@@ -68,6 +107,7 @@ const ProductDetails = () => {
       setError('');
       const response = await productAPI.getById(id);
       
+      // API returns product data split into sections
       const { product: productData, colors, images, sizes } = response.data;
       
       if (!productData || !productData.id) {
@@ -75,15 +115,17 @@ const ProductDetails = () => {
         return;
       }
       
+      // Combine everything into one product object
       const fullProduct = {
         ...productData,
         colors: colors || [],
         images: images || [],
-        sizes: sizes || [],
+        sizes: sizes || [],  // This is actually inventory data (size + color + quantity)
       };
       
       setProduct(fullProduct);
       
+      // Auto-select first color and size
       if (colors?.length > 0) {
         setSelectedColor(colors[0]);
       }
@@ -98,13 +140,18 @@ const ProductDetails = () => {
     }
   };
 
-  // Get stock info for selected color + size combination
+  // ==========================================================================
+  // STOCK/INVENTORY HELPERS
+  // ==========================================================================
+  
+  // Get stock info for the currently selected color + size combination
   const getSelectedVariantStock = () => {
     if (!product || !selectedColor || !selectedSize) {
       return { quantity: 0, status: 'unknown' };
     }
 
-    // Find the inventory item matching selected color and size
+    // Find the inventory record matching selected color and size
+    // product.sizes is actually inventory data with color_id, size_value, quantity
     const variant = product.sizes.find(s => 
       s.color_id === selectedColor.id && 
       (s.size_value === selectedSize.size_value || s.size === selectedSize.size_value)
@@ -117,20 +164,21 @@ const ProductDetails = () => {
     const qty = variant.quantity || 0;
     let status = 'in_stock';
     if (qty === 0) status = 'out_of_stock';
-    else if (qty < 10) status = 'running_out';
+    else if (qty < 10) status = 'running_out';  // Low stock threshold
 
     return { quantity: qty, status };
   };
 
+  // Get stock status for current selection
   const variantStock = getSelectedVariantStock();
   const isVariantOutOfStock = variantStock.status === 'out_of_stock';
   const isVariantRunningOut = variantStock.status === 'running_out';
   const isVariantInStock = variantStock.status === 'in_stock';
 
   // Get sizes available for the selected color
+  // (not all sizes are available in all colors due to inventory)
   const getSizesForColor = () => {
     if (!product || !selectedColor) return [];
-    
     return product.sizes.filter(s => s.color_id === selectedColor.id);
   };
 
@@ -148,21 +196,29 @@ const ProductDetails = () => {
     }
   }, [selectedColor, product]);
 
+  // ==========================================================================
+  // IMAGE GALLERY HELPERS
+  // ==========================================================================
+  
+  // Filter images to show only those matching selected color
   const getFilteredImages = () => {
     if (!product) return [];
     
     let filteredImages = [];
     
+    // First, try to get images for selected color
     if (selectedColor && product.images?.length > 0) {
       filteredImages = product.images
         .filter(img => img.color_id === selectedColor.id)
         .map(img => img.image_url);
     }
     
+    // Fallback to all images if none match color
     if (filteredImages.length === 0 && product.images?.length > 0) {
       filteredImages = product.images.map(img => img.image_url);
     }
     
+    // Last resort: use main_image
     if (filteredImages.length === 0 && product.main_image) {
       filteredImages = [product.main_image];
     }
@@ -172,11 +228,18 @@ const ProductDetails = () => {
 
   const images = getFilteredImages();
 
+  // Reset to first image when color changes
   useEffect(() => {
     setCurrentImageIndex(0);
   }, [selectedColor]);
 
+  // ==========================================================================
+  // ACTION HANDLERS
+  // ==========================================================================
+  
+  // ---------- ADD TO CART ----------
   const handleAddToCart = async () => {
+    // Validate selections
     if (!selectedColor || !selectedSize) {
       alert('Please select color and size');
       return;
@@ -210,6 +273,7 @@ const ProductDetails = () => {
     }
   };
 
+  // ---------- REMOVE FROM CART ----------
   const handleRemoveFromCart = async () => {
     if (!selectedColor || !selectedSize) return;
     
@@ -228,7 +292,6 @@ const ProductDetails = () => {
     setRemovingFromCart(true);
     
     try {
-      // Use cart_item_id if available, otherwise try id
       const itemId = cartItem.cart_item_id || cartItem.id;
       const result = await removeItem(itemId);
       if (result.success) {
@@ -244,6 +307,8 @@ const ProductDetails = () => {
     }
   };
 
+  // ---------- BUY NOW ----------
+  // Skip cart, go directly to checkout with this item
   const handleBuyNow = () => {
     if (!selectedColor || !selectedSize) {
       alert('Please select color and size');
@@ -257,7 +322,8 @@ const ProductDetails = () => {
 
     setBuyingNow(true);
     
-    // Navigate to checkout with product info (without adding to cart)
+    // Navigate to checkout with product info in state
+    // Checkout page will handle this as a "buy now" flow
     navigate('/checkout', { 
       state: { 
         buyNow: true,
@@ -274,8 +340,9 @@ const ProductDetails = () => {
     });
   };
 
+  // ---------- WISHLIST TOGGLE ----------
   const handleWishlistToggle = async () => {
-    // Prevent duplicate calls
+    // Prevent duplicate calls (debounce via ref)
     if (wishlistActionInProgress.current) {
       return;
     }
@@ -285,10 +352,8 @@ const ProductDetails = () => {
 
     try {
       if (isProductInWishlist) {
-        // Remove from wishlist
         await removeFromWishlist(product.id);
       } else {
-        // Add to wishlist (works for both guests and authenticated users)
         const result = await addToWishlist(product.id);
         if (!result.success && result.error) {
           alert(result.error);
@@ -302,8 +367,14 @@ const ProductDetails = () => {
     }
   };
 
+  // ==========================================================================
+  // RENDER: LOADING STATE
+  // ==========================================================================
   if (loading) return <Loading fullScreen />;
 
+  // ==========================================================================
+  // RENDER: ERROR STATE
+  // ==========================================================================
   if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -315,19 +386,27 @@ const ProductDetails = () => {
     );
   }
 
-  // Determine wishlist button appearance - immediate, no delay
+  // Wishlist button text (changes based on state)
   const wishlistButtonText = wishlistLoading
     ? (isProductInWishlist ? 'Removing...' : 'Adding...')
     : isProductInWishlist
       ? 'Remove from Wishlist'
       : 'Add to Wishlist';
 
+  // ==========================================================================
+  // RENDER: PRODUCT PAGE
+  // ==========================================================================
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container-custom">
+        {/* Two-column layout: Images on left, Info on right */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Images */}
+          
+          {/* ============================================================== */}
+          {/* LEFT COLUMN: IMAGE GALLERY                                      */}
+          {/* ============================================================== */}
           <div>
+            {/* Main Image */}
             <div className="relative bg-white rounded-lg overflow-hidden aspect-square mb-4">
               {images.length > 0 ? (
                 <img
@@ -344,13 +423,14 @@ const ProductDetails = () => {
                 </div>
               )}
               
+              {/* Sale badge */}
               {product.on_sale && (
                 <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded font-bold">
                   SALE
                 </div>
               )}
 
-              {/* Out of Stock Overlay */}
+              {/* Out of Stock overlay */}
               {isVariantOutOfStock && (
                 <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                   <span className="bg-white text-gray-900 px-4 py-2 rounded font-medium">
@@ -359,6 +439,7 @@ const ProductDetails = () => {
                 </div>
               )}
 
+              {/* Image navigation arrows (only if multiple images) */}
               {images.length > 1 && (
                 <>
                   <button
@@ -377,7 +458,7 @@ const ProductDetails = () => {
               )}
             </div>
 
-            {/* Thumbnails */}
+            {/* Thumbnail strip */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {images.map((img, index) => (
@@ -399,16 +480,22 @@ const ProductDetails = () => {
             )}
           </div>
 
-          {/* Info */}
+          {/* ============================================================== */}
+          {/* RIGHT COLUMN: PRODUCT INFO                                      */}
+          {/* ============================================================== */}
           <div>
+            {/* Category */}
             <p className="text-sm text-gray-500 uppercase tracking-widest mb-2">
               {product.category}
             </p>
+            
+            {/* Product name */}
             <h1 className="text-3xl font-serif text-gray-900 mb-4">{product.name}</h1>
 
-            {/* Price */}
+            {/* -------- PRICE -------- */}
             <div className="mb-6">
               {product.on_sale && product.sale_price ? (
+                // Sale pricing: show sale price, original crossed out, discount badge
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-3xl font-bold text-accent">
                     {formatCurrency(product.sale_price)}
@@ -421,26 +508,24 @@ const ProductDetails = () => {
                   </span>
                 </div>
               ) : (
+                // Regular pricing
                 <span className="text-3xl font-bold text-gray-900">
                   {formatCurrency(product.selling_price)}
                 </span>
               )}
             </div>
 
-            {/* Description */}
-            
-           
+            {/* -------- DESCRIPTION -------- */}
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">Description</h3>
               <p className="text-gray-700 leading-relaxed whitespace-pre-line">{product.description}</p>
             </div>
 
-{/* Impact Story - Environmental & Social Impact */}
-<ImpactStory product={product} />
+            {/* -------- ENVIRONMENTAL IMPACT -------- */}
+            {/* Shows materials, waste recycled, social contribution */}
+            <ImpactStory product={product} />
 
-{/* Color Selection */}
-
-            {/* Color Selection */}
+            {/* -------- COLOR SELECTION -------- */}
             {product.colors?.length > 0 && (
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-900 mb-3">
@@ -464,7 +549,8 @@ const ProductDetails = () => {
               </div>
             )}
 
-            {/* Size Selection - Only show sizes for selected color */}
+            {/* -------- SIZE SELECTION -------- */}
+            {/* Only shows sizes available for the selected color */}
             {availableSizes.length > 0 && (
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-900 mb-3">
@@ -493,6 +579,7 @@ const ProductDetails = () => {
                         title={isSizeOutOfStock ? 'Out of Stock' : isSizeRunningOut ? `Only ${sizeQty} left` : 'In Stock'}
                       >
                         {sizeValue}
+                        {/* Orange dot indicator for low stock */}
                         {isSizeRunningOut && !isSizeOutOfStock && (
                           <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full"></span>
                         )}
@@ -500,6 +587,7 @@ const ProductDetails = () => {
                     );
                   })}
                 </div>
+                {/* Legend for orange dot */}
                 {availableSizes.some(s => (s.quantity || 0) > 0 && (s.quantity || 0) < 10) && (
                   <p className="text-xs text-orange-500 mt-2 flex items-center gap-1">
                     <span className="w-2 h-2 bg-orange-500 rounded-full inline-block"></span>
@@ -516,7 +604,7 @@ const ProductDetails = () => {
               </div>
             )}
 
-            {/* Quantity */}
+            {/* -------- QUANTITY -------- */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-900 mb-3">Quantity</label>
               <div className="flex items-center gap-3">
@@ -535,6 +623,7 @@ const ProductDetails = () => {
                 >
                   +
                 </button>
+                {/* Low stock warning next to quantity */}
                 {isVariantRunningOut && (
                   <span className="text-sm text-orange-500">
                     Only {variantStock.quantity} left
@@ -543,7 +632,7 @@ const ProductDetails = () => {
               </div>
             </div>
 
-            {/* Stock Status - Dynamic based on selected variant */}
+            {/* -------- STOCK STATUS -------- */}
             <div className="mb-6">
               {isVariantInStock && (
                 <p className="text-green-600 text-sm font-medium">✓ In Stock</p>
@@ -556,9 +645,10 @@ const ProductDetails = () => {
               )}
             </div>
 
-            {/* Buttons */}
+            {/* -------- ACTION BUTTONS -------- */}
             <div className="space-y-3 mb-8">
-              {/* Buy Now Button - Disabled when out of stock */}
+              
+              {/* BUY NOW - Skip cart, go to checkout */}
               <button
                 onClick={handleBuyNow}
                 disabled={isVariantOutOfStock || buyingNow || !selectedColor || !selectedSize}
@@ -583,7 +673,7 @@ const ProductDetails = () => {
                 )}
               </button>
 
-              {/* Add to Cart / Remove from Cart Button - Disabled when out of stock */}
+              {/* ADD TO CART / REMOVE FROM CART toggle */}
               {isInCart ? (
                 <button
                   onClick={handleRemoveFromCart}
@@ -625,7 +715,7 @@ const ProductDetails = () => {
                 </button>
               )}
 
-              {/* Wishlist Button - Always enabled */}
+              {/* WISHLIST - Always enabled (even if out of stock) */}
               <button
                 onClick={handleWishlistToggle}
                 disabled={wishlistLoading}
@@ -642,7 +732,7 @@ const ProductDetails = () => {
                 {wishlistButtonText}
               </button>
 
-              {/* Out of stock helper text */}
+              {/* Helper text for out of stock items */}
               {isVariantOutOfStock && (
                 <p className="text-center text-sm text-gray-500">
                   Add to wishlist to get notified when this item is back in stock
@@ -650,8 +740,9 @@ const ProductDetails = () => {
               )}
             </div>
 
-            {/* Features */}
+            {/* -------- SHIPPING & POLICY INFO -------- */}
             <div className="border-t pt-6 space-y-4">
+              {/* Shipping info */}
               <div className="flex items-center gap-3">
                 <Truck className="text-accent" size={24} />
                 <div>
@@ -660,6 +751,7 @@ const ProductDetails = () => {
                 </div>
               </div>
 
+              {/* Quality guarantee */}
               <div className="flex items-center gap-3">
                 <Shield className="text-accent" size={24} />
                 <div>
@@ -668,6 +760,7 @@ const ProductDetails = () => {
                 </div>
               </div>
 
+              {/* No returns policy (per requirements) */}
               <div className="bg-yellow-50 p-4 rounded">
                 <p className="text-sm text-yellow-800">
                   <strong>Note:</strong> No returns or refunds on all purchases
@@ -682,3 +775,38 @@ const ProductDetails = () => {
 };
 
 export default ProductDetails;
+
+// ----------------------------------------------------------------------------
+// COMPONENT COMPLEXITY NOTE:
+// ----------------------------------------------------------------------------
+// This is a complex page with many interrelated pieces:
+// 
+// VARIANT SELECTION:
+// - Each product has multiple colors
+// - Each color has multiple sizes with individual inventory counts
+// - Changing color auto-selects first available size for that color
+// - Stock status updates based on selected color + size combination
+//
+// IMAGE GALLERY:
+// - Images are filtered by selected color
+// - Thumbnails show all images for current color
+// - Main image has prev/next navigation
+//
+// CART INTEGRATION:
+// - Checks if current variant is already in cart
+// - Shows "Remove from Cart" if item is in cart
+// - Shows "Add to Cart" if not (or if out of stock, shows disabled)
+//
+// BUY NOW:
+// - Bypasses cart entirely
+// - Passes product info via React Router state to checkout
+// - Checkout page detects this and handles it as single-item purchase
+//
+// COULD BE IMPROVED:
+// - Break into smaller sub-components (ImageGallery, VariantSelector, etc.)
+// - Add reviews section
+// - Related products carousel
+// - Recently viewed products
+// - Size guide modal
+// - Stock notification signup for out-of-stock items
+// ----------------------------------------------------------------------------

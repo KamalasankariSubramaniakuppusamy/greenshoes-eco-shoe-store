@@ -1,22 +1,45 @@
+// ============================================================================
+// RegisterDrawer - User registration form inside AccountDrawer
+// ============================================================================
+// Registration form component - displayed inside AccountDrawer when user wants to create account
+// Includes real-time password validation feedback
+//
+// Features:
+// - Password strength requirements with live checkmarks
+// - Confirm password matching validation
+// - Show/hide password toggles
+// - Form validation before submit
+
 import React, { useState, useMemo } from 'react';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../common/Button';
 
-const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
+const RegisterDrawer = ({ 
+  onClose,          // Close the drawer
+  onSwitchToLogin   // Switch to login form
+}) => {
   const { register } = useAuth();
+  
+  // Form field values
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
+  
+  // Password visibility toggles (separate for each field)
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Loading and error states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Password validation rules
+  // ---------- PASSWORD VALIDATION RULES ----------
+  // useMemo recalculates only when password changes
+  // Each rule has a label and whether it's currently satisfied
   const passwordRules = useMemo(() => {
     const password = formData.password;
     return [
@@ -28,28 +51,36 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
     ];
   }, [formData.password]);
 
+  // All password requirements met?
   const isPasswordValid = passwordRules.every(rule => rule.valid);
+  
+  // Do the two password fields match? (and confirm isn't empty)
   const doPasswordsMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== '';
 
+  // ---------- FORM HANDLERS ----------
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    setError('');
+    setError('');  // Clear error when user makes changes
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate all fields are filled
     if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
       setError('All fields are required');
       return;
     }
 
+    // Validate password meets requirements
     if (!isPasswordValid) {
       setError('Password does not meet requirements');
       return;
     }
 
+    // Validate passwords match
     if (!doPasswordsMatch) {
       setError('Passwords do not match');
       return;
@@ -58,9 +89,11 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
     setLoading(true);
     setError('');
 
+    // Call register from AuthContext
+    // Sends data to API, stores token if successful
     const result = await register({
-      name: formData.fullName,
-      fullName: formData.fullName,
+      name: formData.fullName,      // Some APIs expect 'name'
+      fullName: formData.fullName,  // Some expect 'fullName' - send both to be safe
       email: formData.email,
       password: formData.password,
     });
@@ -68,14 +101,18 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
     setLoading(false);
 
     if (result.success) {
+      // Registration worked - close drawer
+      // User is now logged in (register returns token)
       onClose();
     } else {
+      // Show error (e.g., "Email already exists")
       setError(result.error || 'Registration failed');
     }
   };
 
   return (
     <div className="p-6">
+      {/* -------- HEADER -------- */}
       <div className="text-center mb-6">
         <h2 
           className="text-2xl font-semibold text-gray-900"
@@ -86,14 +123,17 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
         <p className="text-gray-500 text-sm mt-1">Join GreenShoes today</p>
       </div>
 
+      {/* -------- ERROR MESSAGE -------- */}
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg">
           {error}
         </div>
       )}
 
+      {/* -------- REGISTRATION FORM -------- */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Full Name */}
+        
+        {/* Full Name field */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Full Name <span className="text-red-500">*</span>
@@ -108,7 +148,7 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
           />
         </div>
 
-        {/* Email */}
+        {/* Email field */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Email <span className="text-red-500">*</span>
@@ -123,7 +163,7 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
           />
         </div>
 
-        {/* Password */}
+        {/* Password field with requirements checklist */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Password <span className="text-red-500">*</span>
@@ -146,13 +186,15 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
             </button>
           </div>
           
-          {/* Password Requirements */}
+          {/* Password Requirements Checklist */}
+          {/* Only shows once user starts typing a password */}
           {formData.password && (
             <div className="mt-2 p-3 bg-gray-50 rounded-lg">
               <p className="text-xs font-medium text-gray-600 mb-2">Password must contain:</p>
               <ul className="space-y-1">
                 {passwordRules.map((rule, index) => (
                   <li key={index} className="flex items-center gap-2 text-xs">
+                    {/* Green check or red X based on whether rule is satisfied */}
                     {rule.valid ? (
                       <Check size={14} className="text-green-500" />
                     ) : (
@@ -168,7 +210,7 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
           )}
         </div>
 
-        {/* Confirm Password */}
+        {/* Confirm Password field */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Confirm Password <span className="text-red-500">*</span>
@@ -180,12 +222,13 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
               value={formData.confirmPassword}
               onChange={handleChange}
               placeholder="••••••••"
+              // Dynamic border color based on match status
               className={`w-full px-4 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-gray-900 bg-white ${
                 formData.confirmPassword && !doPasswordsMatch 
-                  ? 'border-red-500' 
+                  ? 'border-red-500'    // Doesn't match - red border
                   : formData.confirmPassword && doPasswordsMatch 
-                  ? 'border-green-500' 
-                  : 'border-gray-300'
+                  ? 'border-green-500'  // Matches - green border
+                  : 'border-gray-300'   // Empty - default gray
               }`}
             />
             <button
@@ -196,6 +239,7 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
               {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+          {/* Match status messages */}
           {formData.confirmPassword && !doPasswordsMatch && (
             <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
           )}
@@ -206,7 +250,7 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
           )}
         </div>
 
-        {/* Submit Button */}
+        {/* Submit button - disabled until password is valid and matches */}
         <Button 
           type="submit" 
           variant="accent" 
@@ -217,7 +261,7 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
         </Button>
       </form>
 
-      {/* Switch to Login */}
+      {/* -------- SWITCH TO LOGIN -------- */}
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600">
           Already have an account?{' '}
@@ -230,7 +274,7 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
         </p>
       </div>
 
-      {/* Continue as Guest */}
+      {/* -------- CONTINUE AS GUEST -------- */}
       <div className="mt-4 text-center">
         <button
           onClick={onClose}
@@ -244,3 +288,15 @@ const RegisterDrawer = ({ onClose, onSwitchToLogin }) => {
 };
 
 export default RegisterDrawer;
+
+// ----------------------------------------------------------------------------
+// Password validation provides immediate feedback as user types
+// This is good UX because:
+// 1. User knows requirements upfront (no guessing)
+// 2. Can see progress as they type
+// 3. Submit button stays disabled until valid (prevents wasted API calls)
+// 4. Confirm password shows match status immediately
+//
+// The useMemo for passwordRules prevents unnecessary recalculation
+// It only runs when formData.password actually changes
+// ----------------------------------------------------------------------------

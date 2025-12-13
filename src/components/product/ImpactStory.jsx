@@ -1,44 +1,67 @@
+// ============================================================================
+// WHat impact does greenshoes product have on the environment?
+// ============================================================================
+// Displays environmental impact information for a product
+// Part of GreenShoes' eco-friendly brand positioning
+//
+// Shows three key metrics:
+// 1. What sustainable materials the product is made from
+// 2. How much ocean waste was recycled to make it
+// 3. What percentage of profits support environmental causes
+//
+// The component parses product descriptions to extract this data,
+// with sensible fallbacks per category if extraction fails
+
 import React from 'react';
 import { Recycle, Scale, Heart } from 'lucide-react';
 
 const ImpactStory = ({ product }) => {
-  // Extract impact data from the product description
+  
+  // --------------------------------------------------------------------------
+  // EXTRACT IMPACT DATA FROM DESCRIPTION
+  // --------------------------------------------------------------------------
+  // Product descriptions contain embedded impact information
+  // This function parses it out using regex patterns
+  // Falls back to category-appropriate defaults if parsing fails
+  //
   const extractImpactData = () => {
     const description = product?.description || '';
     
-    // Default fallback data
+    // Initialize with empty values - will be filled by parsing or defaults
     let materials = [];
     let wasteAmount = '';
     let contribution = '';
 
-    // --- EXTRACT WASTE AMOUNT ---
+    // ========== EXTRACT WASTE AMOUNT ==========
     // Look for patterns like "1.2 kg", "2.5 pounds", "4.0 lbs", etc.
     
-    // Check for pounds first (e.g., "2.5 pounds")
+    // Try pounds format first (e.g., "2.5 pounds of ocean waste")
     const poundsMatch = description.match(/(\d+\.?\d*)\s*pounds?\s+of\s+(?:plastic\s+)?(?:ocean\s+)?waste/i) ||
                         description.match(/removes?\s+(?:approximately\s+)?(\d+\.?\d*)\s*pounds?/i);
     
-    // Check for lbs (e.g., "2.5 lbs")
+    // Try lbs format (e.g., "2.5 lbs of ocean waste")
     const lbsMatch = description.match(/(\d+\.?\d*)\s*lbs?\s+of\s+ocean\s+waste/i) ||
                      description.match(/reclaims?\s+(\d+\.?\d*)\s*lbs?/i);
     
-    // Check for kg (e.g., "1.2 kg") - convert to lbs
+    // Try kg format and convert (e.g., "1.2 kg of ocean waste")
     const kgMatch = description.match(/(\d+\.?\d*)\s*kg\s+of\s+ocean\s+waste/i) || 
                     description.match(/reclaims?\s+(\d+\.?\d*)\s*kg/i) ||
                     description.match(/represents?\s+(\d+\.?\d*)\s*kg/i);
     
+    // Set wasteAmount based on what we found
     if (poundsMatch) {
       wasteAmount = `${poundsMatch[1]} lbs`;
     } else if (lbsMatch) {
       wasteAmount = `${lbsMatch[1]} lbs`;
     } else if (kgMatch) {
-      // Convert kg to lbs (1 kg = 2.205 lbs)
+      // Convert kg to lbs for consistent display (1 kg ≈ 2.205 lbs)
       const lbs = (parseFloat(kgMatch[1]) * 2.205).toFixed(1);
       wasteAmount = `${lbs} lbs`;
     }
 
-    // --- EXTRACT MATERIALS ---
-    // Look for materials mentioned: plastic bottles, fishing nets, rubber, etc.
+    // ========== EXTRACT MATERIALS ==========
+    // Look for eco-friendly materials mentioned in description
+    // Each pattern has a format function to normalize the output
     const materialPatterns = [
       { pattern: /(\d+)\s*(?:recycled\s*)?plastic\s*bottles/i, format: (m) => `${m[1]} plastic bottles` },
       { pattern: /fishing\s*(nets?|line)/i, format: () => 'Fishing nets' },
@@ -61,6 +84,7 @@ const ImpactStory = ({ product }) => {
       { pattern: /mesh/i, format: () => 'Recycled mesh' },
     ];
 
+    // Try each pattern and collect up to 3 unique materials
     materialPatterns.forEach(({ pattern, format }) => {
       const match = description.match(pattern);
       if (match && materials.length < 3) {
@@ -71,27 +95,29 @@ const ImpactStory = ({ product }) => {
       }
     });
 
-    // --- EXTRACT CONTRIBUTION/IMPACT ---
-    // Look for percentage and what it funds
+    // ========== EXTRACT CONTRIBUTION/SOCIAL IMPACT ==========
+    // Look for "X% of purchase funds/supports/goes to..." patterns
     const contributionMatch = description.match(/(\d+)%\s*of\s*(?:your\s*)?purchase\s*(?:funds?|goes?|supports?|fuels?)[^\.]+/i);
     if (contributionMatch) {
-      // Extract what the contribution funds - get text after the percentage phrase
+      // Extract what the contribution funds
       let fullMatch = contributionMatch[0];
-      // Clean it up - remove the "X% of purchase funds" part and get the rest
+      // Clean up - remove the percentage phrase prefix and get the cause
       contribution = fullMatch
         .replace(/^\d+%\s*of\s*(?:your\s*)?purchase\s*(?:funds?|goes?|supports?|fuels?)\s*(?:the\s*)?(?:fight\s*)?:?\s*/i, '')
-        .split(/,\s*and\s*|\s*,\s*/)
-        .slice(0, 2)
+        .split(/,\s*and\s*|\s*,\s*/)  // Split on ", and" or just ","
+        .slice(0, 2)                   // Take first 2 items
         .map(s => s.trim().replace(/^and\s+/i, ''))
         .join(', ');
       
-      // Truncate if too long
+      // Truncate if too long for the UI
       if (contribution.length > 70) {
         contribution = contribution.substring(0, 67) + '...';
       }
     }
 
-    // --- FALLBACK TO CATEGORY DEFAULTS IF EXTRACTION FAILED ---
+    // ========== FALLBACK TO CATEGORY DEFAULTS ==========
+    // If parsing didn't find anything, use sensible defaults per shoe category
+    
     if (materials.length === 0) {
       const categoryDefaults = {
         boots: ['Recycled ocean plastic', 'Fishing nets', 'Reclaimed rubber'],
@@ -104,7 +130,14 @@ const ImpactStory = ({ product }) => {
     }
 
     if (!wasteAmount) {
-      const defaultAmounts = { boots: '4.0 lbs', heels: '2.6 lbs', pumps: '3.3 lbs', sandals: '1.8 lbs', sneakers: '4.4 lbs' };
+      // Different shoe types use different amounts of material
+      const defaultAmounts = { 
+        boots: '4.0 lbs',    // Larger, more material
+        heels: '2.6 lbs', 
+        pumps: '3.3 lbs', 
+        sandals: '1.8 lbs',  // Smaller, less material
+        sneakers: '4.4 lbs'  // Complex construction
+      };
       wasteAmount = defaultAmounts[product?.category?.toLowerCase()] || '3.0 lbs';
     }
 
@@ -112,21 +145,25 @@ const ImpactStory = ({ product }) => {
       contribution = 'Ocean cleanup & coastal community support';
     }
 
-    // Get percentage from description or default to 15%
+    // Extract donation percentage or default to 15%
     const percentMatch = description.match(/(\d+)%\s*of\s*(?:your\s*)?purchase/i);
     const percentage = percentMatch ? percentMatch[1] : '15';
 
     return { materials, wasteAmount, contribution, percentage };
   };
 
+  // Get the parsed/defaulted impact data
   const impact = extractImpactData();
 
   return (
     <div className="mb-6">
       <h3 className="text-sm font-semibold text-gray-900 mb-3">Your Impact</h3>
       
+      {/* Three impact badges in a flex wrap layout */}
       <div className="flex flex-wrap gap-2">
-        {/* Box 1: Materials Used */}
+        
+        {/* -------- BOX 1: MATERIALS -------- */}
+        {/* What sustainable materials the product is made from */}
         <div className="bg-gray-900 text-white px-3 py-2 rounded-lg flex items-center gap-2">
           <Recycle size={14} className="text-emerald-400 flex-shrink-0" />
           <span className="text-xs">
@@ -135,7 +172,8 @@ const ImpactStory = ({ product }) => {
           </span>
         </div>
 
-        {/* Box 2: Waste Recycled */}
+        {/* -------- BOX 2: WASTE RECYCLED -------- */}
+        {/* How much ocean waste was used/recycled */}
         <div className="bg-gray-900 text-white px-3 py-2 rounded-lg flex items-center gap-2">
           <Scale size={14} className="text-blue-400 flex-shrink-0" />
           <span className="text-xs">
@@ -144,7 +182,8 @@ const ImpactStory = ({ product }) => {
           </span>
         </div>
 
-        {/* Box 3: Social Impact */}
+        {/* -------- BOX 3: SOCIAL IMPACT -------- */}
+        {/* What causes the purchase supports */}
         <div className="bg-gray-900 text-white px-3 py-2 rounded-lg flex items-center gap-2">
           <Heart size={14} className="text-rose-400 flex-shrink-0" />
           <span className="text-xs">
@@ -158,3 +197,25 @@ const ImpactStory = ({ product }) => {
 };
 
 export default ImpactStory;
+
+// ----------------------------------------------------------------------------
+// DESIGN NOTES:
+//
+// This component serves the brand's eco-friendly positioning by making
+// the environmental impact tangible and personal ("Your Impact")
+//
+// The dark badges (bg-gray-900) stand out against the white product page
+// Color coding helps users quickly identify each type of impact:
+// - Emerald/green: Materials (recycling)
+// - Blue: Waste amount (ocean)
+// - Rose/pink: Social impact (heart/community)
+//
+// The regex parsing is fairly robust but relies on description formatting
+// If descriptions don't follow expected patterns, defaults kick in
+// This ensures every product shows some impact story
+//
+// POTENTIAL IMPROVEMENTS:
+// - Store impact data in dedicated DB fields instead of parsing description
+// - Add tooltips explaining each metric in more detail
+// - Show comparative metrics ("equivalent to X bottles")
+// ----------------------------------------------------------------------------

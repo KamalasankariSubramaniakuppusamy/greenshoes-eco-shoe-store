@@ -1,0 +1,225 @@
+%%{init: {theme:base, themeVariables: { primaryColor:#fff,primaryTextColor:#000,primaryBorderColor:#000,lineColor:#000,secondaryColor:#f5f5f5,tertiaryColor:#fff,background:#fff,mainBkg:#fff,secondBkg:#f5f5f5,lineColor:#000,border1:#000,border2:#000,note:#fff,text:#000,critical:#fff,done:#fff,crit:#fff,activeCrit:#fff}}}%%
+erDiagram
+    users ||--o{ addresses : "has"
+    users ||--o| payment_cards : "stores"
+    users ||--o| carts : "owns"
+    users ||--o| wishlist : "maintains"
+    users ||--o{ orders : "places"
+    users ||--o{ payments : "makes"
+    users ||--o{ audit_logs : "performs"
+    
+    guest_users ||--o| carts : "owns"
+    guest_users ||--o{ orders : "places"
+    
+    addresses ||--o{ orders : "ships_to"
+    addresses ||--o{ orders : "bills_to"
+    addresses ||--o{ payment_cards : "billing_address"
+    
+    products ||--o{ product_images : "displays"
+    products ||--o{ product_sizes : "available_in"
+    products ||--o{ product_colors : "available_in"
+    products ||--o{ inventory : "tracked_by"
+    products ||--o{ cart_items : "added_to"
+    products ||--o{ wishlist_items : "saved_in"
+    products ||--o{ order_items : "ordered_as"
+    
+    sizes ||--o{ product_sizes : "used_in"
+    sizes ||--o{ inventory : "applies_to"
+    sizes ||--o{ cart_items : "specifies"
+    sizes ||--o{ wishlist_items : "specifies"
+    sizes ||--o{ order_items : "specifies"
+    
+    colors ||--o{ product_colors : "used_in"
+    colors ||--o{ inventory : "applies_to"
+    colors ||--o{ cart_items : "specifies"
+    colors ||--o{ wishlist_items : "specifies"
+    colors ||--o{ order_items : "specifies"
+    
+    carts ||--o{ cart_items : "contains"
+    
+    wishlist ||--o{ wishlist_items : "contains"
+    
+    orders ||--o{ order_items : "includes"
+    orders ||--o| payments : "paid_by"
+    
+    users {
+        uuid id PK
+        varchar email UK
+        varchar password_hash
+        varchar full_name
+        varchar role
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    guest_users {
+        uuid id PK
+        varchar session_id UK
+        varchar email
+        timestamp created_at
+    }
+    
+    addresses {
+        uuid id PK
+        uuid user_id FK
+        varchar street_line1
+        varchar street_line2
+        varchar city
+        varchar state
+        varchar zip_code
+        boolean is_default
+        timestamp created_at
+    }
+    
+    payment_cards {
+        uuid id PK
+        uuid user_id FK
+        text segment1_encrypted
+        text segment2_encrypted
+        text segment3_encrypted
+        text segment4_encrypted
+        text expiry_encrypted
+        varchar card_type
+        varchar last4_plain
+        boolean is_default
+        uuid billing_address_id FK
+        varchar cvc_hash
+        varchar cvc_salt
+        timestamp created_at
+    }
+    
+    products {
+        uuid id PK
+        varchar name
+        text description
+        decimal base_price
+        varchar category
+        boolean is_on_sale
+        decimal sale_price
+        text impact_story
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    product_images {
+        uuid id PK
+        uuid product_id FK
+        varchar image_url
+        varchar alt_text
+        integer display_order
+        timestamp created_at
+    }
+    
+    sizes {
+        uuid id PK
+        varchar size UK
+        integer sort_order
+    }
+    
+    colors {
+        uuid id PK
+        varchar name UK
+        varchar hex_code
+    }
+    
+    product_sizes {
+        uuid id PK
+        uuid product_id FK
+        uuid size_id FK
+        varchar sku UK
+        timestamp created_at
+    }
+    
+    product_colors {
+        uuid id PK
+        uuid product_id FK
+        uuid color_id FK
+        timestamp created_at
+    }
+    
+    inventory {
+        uuid id PK
+        uuid product_id FK
+        uuid size_id FK
+        uuid color_id FK
+        integer quantity
+        timestamp last_updated
+    }
+    
+    carts {
+        uuid id PK
+        uuid user_id FK
+        varchar session_id UK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    cart_items {
+        uuid id PK
+        uuid cart_id FK
+        uuid product_id FK
+        uuid size_id FK
+        uuid color_id FK
+        integer quantity
+        timestamp added_at
+    }
+    
+    wishlist {
+        uuid id PK
+        uuid user_id FK
+        timestamp created_at
+    }
+    
+    wishlist_items {
+        uuid id PK
+        uuid wishlist_id FK
+        uuid product_id FK
+        uuid size_id FK
+        uuid color_id FK
+        timestamp added_at
+    }
+    
+    orders {
+        uuid id PK
+        varchar order_id UK
+        uuid user_id FK
+        decimal subtotal
+        decimal tax_amount
+        decimal shipping_cost
+        decimal total
+        uuid shipping_address_id FK
+        uuid billing_address_id FK
+        varchar status
+        timestamp created_at
+    }
+    
+    order_items {
+        uuid id PK
+        uuid order_id FK
+        uuid product_id FK
+        uuid size_id FK
+        uuid color_id FK
+        integer quantity
+        decimal unit_price
+        timestamp created_at
+    }
+    
+    payments {
+        uuid id PK
+        uuid order_id FK
+        uuid user_id FK
+        decimal amount
+        varchar payment_method
+        varchar transaction_id UK
+        varchar status
+        timestamp created_at
+    }
+    
+    audit_logs {
+        uuid id PK
+        varchar action
+        varchar table_name
+        uuid user_id FK
+        jsonb changes
+        timestamp created_at
+    }
